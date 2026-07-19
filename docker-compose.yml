@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  # CPU-based service
+  app-cpu:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: cpu
+    container_name: product-image-ai-cpu
+    ports:
+      - "8000:8000"
+    environment:
+      - DEBUG=false
+      - LOG_LEVEL=INFO
+      - MAX_WORKERS=4
+      - ENABLE_GPU=false
+      - CANVAS_WIDTH=1200
+      - CANVAS_HEIGHT=1500
+      - DEFAULT_SCALE=92
+      - BACKGROUND_R=236
+      - BACKGROUND_G=236
+      - BACKGROUND_B=236
+    volumes:
+      - ./uploads:/app/uploads
+      - ./processed:/app/processed
+      - ./jobs:/app/jobs
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # GPU-based service (uncomment to use)
+  # app-gpu:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #     target: gpu
+  #   container_name: product-image-ai-gpu
+  #   ports:
+  #     - "8001:8000"
+  #   environment:
+  #     - DEBUG=false
+  #     - LOG_LEVEL=INFO
+  #     - MAX_WORKERS=8
+  #     - ENABLE_GPU=true
+  #     - CANVAS_WIDTH=1200
+  #     - CANVAS_HEIGHT=1500
+  #     - DEFAULT_SCALE=92
+  #     - BACKGROUND_R=236
+  #     - BACKGROUND_G=236
+  #     - BACKGROUND_B=236
+  #   volumes:
+  #     - ./uploads:/app/uploads
+  #     - ./processed:/app/processed
+  #     - ./jobs:/app/jobs
+  #     - ./logs:/app/logs
+  #   restart: unless-stopped
+  #   deploy:
+  #     resources:
+  #       reservations:
+  #         devices:
+  #           - driver: nvidia
+  #             count: 1
+  #             capabilities: [gpu]
+  #   healthcheck:
+  #     test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 40s
+
+volumes:
+  uploads:
+  processed:
+  jobs:
+  logs:
