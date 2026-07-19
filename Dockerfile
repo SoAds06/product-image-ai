@@ -1,86 +1,23 @@
-# Multi-stage build for Product Image AI
-
-# Stage 1: Base image with Python
-FROM python:3.11-slim as base
-
-# Set environment variables
-ENV PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PIP_NO_CACHE_DIR=1 \
-    PIP_DISABLE_PIP_VERSION_CHECK=1
-
-# Install system dependencies
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential \
-    libsm6 \
-    libxext6 \
-    libxrender-dev \
-    libgomp1 \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
-
-# Stage 2: CPU image
-FROM base as cpu
+FROM python:3.11-slim
 
 WORKDIR /app
 
-# Copy requirements
-COPY requirements.txt .
-
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt && \
-    pip uninstall -y torch torchvision && \
-    pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu
-
-# Copy application
-COPY . .
-
-# Create necessary directories
-RUN mkdir -p uploads processed jobs logs
-
-# Expose port
-EXPOSE 8000
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
-
-# Run application
-CMD ["gunicorn", "app:app", "--workers", "4", "--worker-class", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000", "--timeout", "300"]
-
-# Stage 3: GPU image
-FROM base as gpu
-
-WORKDIR /app
-
-# Install CUDA libraries
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    nvidia-cuda-toolkit \
+# Sistem bağımlılıkları
+RUN apt-get update && apt-get install -y \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements
-COPY requirements.txt .
+# Projeyi clone et
+RUN git clone https://github.com/SoAds06/product-image-ai.git .
 
-# Install Python dependencies with CUDA support
-RUN pip install --no-cache-dir -r requirements.txt && \
-    pip uninstall -y torch torchvision && \
-    pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cu118
+# Python bağımlılıkları yükle
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application
-COPY . .
+# .env dosyasını oluştur
+RUN cp .env.example .env
 
-# Create necessary directories
-RUN mkdir -p uploads processed jobs logs
-
-# Expose port
+# Port aç
 EXPOSE 8000
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
-
-# Run application
-CMD ["gunicorn", "app:app", "--workers", "4", "--worker-class", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000", "--timeout", "300"]
-
-# Default to CPU
-FROM cpu as final
+# Uygulamayı başlat
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
