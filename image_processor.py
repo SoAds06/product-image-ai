@@ -148,6 +148,8 @@ def process_product_image(
     offset_y: int = 0,
     input_path: Optional[str | Path] = None,
     output_path: Optional[str | Path] = None,
+    remove_bg: bool = True,
+    quality: int = settings.IMAGE_QUALITY,
 ) -> Union[Image.Image, str]:
     """
     Process product image: remove background, crop, resize, and composite.
@@ -161,6 +163,8 @@ def process_product_image(
         offset_y: Y-axis offset from center
         input_path: Path to input image file
         output_path: Path to save output image
+        remove_bg: Whether to remove background (default True)
+        quality: JPEG quality 10-100 (default 85)
 
     Returns:
         Image: Processed image (if no output_path)
@@ -182,22 +186,36 @@ def process_product_image(
         logger.debug("Starting image processing pipeline")
 
         # Process image
-        image = remove_background(image)
-        image = crop_transparent_edges(image)
+        if remove_bg:
+            logger.debug("Removing background with BiRefNet")
+            image = remove_background(image)
+            image = crop_transparent_edges(image)
+        else:
+            logger.debug("Skipping background removal")
+            image = image.convert("RGBA")
+
         image = resize_product(image, canvas_width, canvas_height, scale)
         image = create_canvas(image, canvas_width, canvas_height, background, offset_y)
 
         # Save if output_path provided
         if output_path:
             output_file = Path(output_path)
+            # Change extension to .jpg
+            output_file = output_file.with_suffix('.jpg')
             output_file.parent.mkdir(parents=True, exist_ok=True)
+
+            # Convert to RGB for JPG (remove alpha channel)
+            if image.mode in ('RGBA', 'LA', 'P'):
+                rgb_image = Image.new('RGB', image.size, settings.background_color)
+                rgb_image.paste(image, mask=image.split()[-1] if image.mode in ('RGBA', 'LA') else None)
+                image = rgb_image
 
             logger.debug(f"Saving image to {output_file}")
             image.save(
                 output_file,
-                format="PNG",
+                format="JPEG",
+                quality=quality,
                 optimize=True,
-                compress_level=6,
             )
             logger.debug(f"Image saved successfully: {output_file}")
             return str(output_file)

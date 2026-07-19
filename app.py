@@ -9,7 +9,8 @@ from typing import Optional
 
 from fastapi import BackgroundTasks, File, Form, HTTPException, UploadFile
 from fastapi import FastAPI
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.staticfiles import StaticFiles
 
 from config import settings
 from csv_processor import process_csv
@@ -67,6 +68,25 @@ async def home() -> dict:
         "status": "running",
         "debug": settings.DEBUG,
     }
+
+
+@app.get(
+    "/dashboard",
+    response_class=HTMLResponse,
+    tags=["UI"],
+    summary="Web Dashboard",
+)
+async def dashboard() -> str:
+    """
+    Get the web dashboard for managing image processing jobs.
+
+    Returns:
+        str: HTML dashboard
+    """
+    dashboard_path = Path(__file__).parent / "dashboard.html"
+    if not dashboard_path.exists():
+        raise HTTPException(status_code=404, detail="Dashboard not found")
+    return dashboard_path.read_text(encoding="utf-8")
 
 
 @app.get(
@@ -203,6 +223,12 @@ async def upload_csv(
         le=100,
         description="Scale percentage",
     ),
+    quality: int = Form(
+        settings.IMAGE_QUALITY,
+        ge=10,
+        le=100,
+        description="Image quality (10-100)",
+    ),
     canvas_width: int = Form(
         settings.CANVAS_WIDTH,
         ge=100,
@@ -235,6 +261,7 @@ async def upload_csv(
         le=255,
         description="Background blue (0-255)",
     ),
+    remove_background: bool = Form(True, description="Remove background with BiRefNet"),
 ) -> UploadCSVResponse:
     """
     Upload CSV file for batch processing.
@@ -278,9 +305,12 @@ async def upload_csv(
             canvas_width=canvas_width,
             canvas_height=canvas_height,
             scale=scale,
+            quality=quality,
             background=(background_r, background_g, background_b),
             offset_y=offset_y,
             job_id=job_id,
+            imgbb_api_key=settings.IMGBB_API_KEY if settings.IMGBB_API_KEY else None,
+            remove_background=remove_background,
         )
 
         return UploadCSVResponse(
@@ -389,6 +419,47 @@ async def download_job(job_id: str) -> FileResponse:
         raise
     except Exception as e:
         logger.error(f"Error downloading job {job_id}: {e}")
+        raise HTTPException(status_code=400, detail=f"Download error: {str(e)}")
+
+
+@app.get(
+    "/download-images-csv/{job_id}",
+    tags=["Download"],
+    summary="Download Images CSV",
+)
+async def download_images_csv(job_id: str) -> FileResponse:
+    """
+    Download CSV file with image URLs from ImgBB.
+
+    Args:
+        job_id: Job identifier
+
+    Returns:
+        FileResponse: CSV file with product codes and image URLs
+
+    Raises:
+        HTTPException: If CSV not found
+    """
+    try:
+        # Look for image_urls CSV file
+        csv_path = settings.OUTPUT_FOLDER.parent / f"image_urls_{job_id}.csv"
+
+        if not csv_path.exists():
+            logger.warning(f"Images CSV not found for job: {job_id}")
+            raise HTTPException(status_code=404, detail="Images CSV not found")
+
+        logger.info(f"Downloading images CSV for job: {job_id}")
+
+        return FileResponse(
+            path=csv_path,
+            filename=f"image_urls_{job_id}.csv",
+            media_type="text/csv",
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error downloading images CSV {job_id}: {e}")
         raise HTTPException(status_code=400, detail=f"Download error: {str(e)}")
 
 

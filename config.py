@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     CANVAS_WIDTH: int = Field(default=1200, env="CANVAS_WIDTH")
     CANVAS_HEIGHT: int = Field(default=1500, env="CANVAS_HEIGHT")
     DEFAULT_SCALE: int = Field(default=92, env="DEFAULT_SCALE")
+    IMAGE_QUALITY: int = Field(default=85, env="IMAGE_QUALITY", ge=10, le=100)
     BACKGROUND_R: int = Field(default=236, env="BACKGROUND_R", ge=0, le=255)
     BACKGROUND_G: int = Field(default=236, env="BACKGROUND_G", ge=0, le=255)
     BACKGROUND_B: int = Field(default=236, env="BACKGROUND_B", ge=0, le=255)
@@ -47,6 +48,9 @@ class Settings(BaseSettings):
     # Feature flags
     ENABLE_GPU: bool = Field(default=True, env="ENABLE_GPU")
     CLEANUP_ON_DELETE: bool = Field(default=True, env="CLEANUP_ON_DELETE")
+
+    # ImgBB Configuration
+    IMGBB_API_KEY: str = Field(default="", env="IMGBB_API_KEY")
 
     class Config:
         """Pydantic config."""
