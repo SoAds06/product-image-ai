@@ -16,9 +16,16 @@ from logger import logger
 # Disable DecompressionBomb warning
 Image.MAX_IMAGE_PIXELS = None
 
-# Load BiRefNet model once at module load
+# Load BiRefNet model once at module load with GPU support
 logger.info(f"Loading BiRefNet model: {settings.MODEL_NAME}")
-SESSION = new_session(settings.MODEL_NAME)
+try:
+    # Try to use GPU (CUDA)
+    SESSION = new_session(settings.MODEL_NAME, providers=["CUDAExecutionProvider", "CPUExecutionProvider"])
+    logger.info("BiRefNet model loaded with GPU support (CUDA)")
+except Exception as e:
+    # Fallback to CPU if GPU fails
+    logger.warning(f"GPU initialization failed: {e}, using CPU")
+    SESSION = new_session(settings.MODEL_NAME)
 logger.info("BiRefNet model loaded successfully")
 
 
