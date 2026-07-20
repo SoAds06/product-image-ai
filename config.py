@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     BACKGROUND_B: int = Field(default=236, env="BACKGROUND_B", ge=0, le=255)
 
     # Processing
-    MAX_WORKERS: int = Field(default=16, env="MAX_WORKERS", ge=1, le=32)
+    MAX_WORKERS: int = Field(default=20, env="MAX_WORKERS", ge=1, le=32)
     MODEL_NAME: str = Field(default="birefnet-general", env="MODEL_NAME")
     REQUEST_TIMEOUT: int = Field(default=30, env="REQUEST_TIMEOUT", ge=5)
     DOWNLOAD_CHUNK_SIZE: int = Field(default=8192, env="DOWNLOAD_CHUNK_SIZE", ge=1024)
